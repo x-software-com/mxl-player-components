@@ -1,0 +1,220 @@
+permissions:
+  contents: read
+on:
+  # Run on push to main branch and on pull requests
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  # Only run the latest workflow
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+env:
+  DOCKER_IMAGE: ubuntu
+name: check
+jobs:
+  build_docker:
+    runs-on: ubuntu-latest
+    container:
+      image: docker:dind
+    # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha: sha-${{ steps.get_sha.outputs.sha_short }}
+      image: ${{ env.DOCKER_IMAGE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Get SHA
+        id: get_sha
+        shell: sh {0}
+        run: |
+          git config --global --add safe.directory $(pwd)
+          echo "sha_short=$(set -e;git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+            type=sha
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/${{ env.DOCKER_IMAGE }}:latest
+          cache-to: type=inline
+  conventional_commit:
+    name: conventional commit check
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          # Fetch all commits to generate the changelog
+          fetch-depth: 0
+      - name: Conventional commit check
+        uses: cocogitto/cocogitto-action@main
+        with:
+          check: true
+  conventional_commit_pr:
+    name: PR conventional commit check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          # Fetch all commits to generate the changelog
+          fetch-depth: 0
+          # pick the pr HEAD instead of the merge commit
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Conventional commit check
+        uses: cocogitto/cocogitto-action@main
+        with:
+          check: true
+  typos:
+    name: typos
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/${{ needs.build_docker.outputs.image }}:${{ needs.build_docker.outputs.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      # packages write access is needed for private docker packages
+      packages: write
+      checks: write
+    needs: [build_docker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check for typos
+        uses: crate-ci/typos@v1.26.0
+  clippy:
+    name: ${{ matrix.toolchain }} / clippy
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/${{ needs.build_docker.outputs.image }}:${{ needs.build_docker.outputs.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      # packages write access is needed for private docker packages
+      packages: write
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, beta]
+    needs: [build_docker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup MXL Player Components build environment
+        uses: ./.github/workflows/mxl-setup
+        with:
+          rust-toolchain: ${{ matrix.toolchain }}
+          rust-toolchain-components: clippy
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/${{ needs.build_docker.outputs.image }}:${{ needs.build_docker.outputs.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      # packages write access is needed for private docker packages
+      packages: write
+      checks: write
+    needs: [build_docker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup MXL Player Components build environment
+        uses: ./.github/workflows/mxl-setup
+        with:
+          rust-toolchain: stable
+      - name: audit check
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+  hack:
+    name: hack
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/${{ needs.build_docker.outputs.image }}:${{ needs.build_docker.outputs.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      # packages write access is needed for private docker packages
+      packages: write
+      checks: write
+    needs: [build_docker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup MXL Player Components build environment
+        uses: ./.github/workflows/mxl-setup
+        with:
+          rust-toolchain: stable
+      - name: cargo hack
+        shell: bash {0}
+        run: |
+          source /etc/profile
+          just hack
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/${{ needs.build_docker.outputs.image }}:${{ needs.build_docker.outputs.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      # packages write access is needed for private docker packages
+      packages: write
+    needs: [build_docker]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Setup MXL Player Components build environment
+        uses: ./.github/workflows/mxl-setup
+        with:
+          rust-toolchain: stable
+      - name: cargo test
+        shell: bash {0}
+        run: |
+          source /etc/profile
+          just ci-test

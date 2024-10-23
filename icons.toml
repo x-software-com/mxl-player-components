@@ -1,0 +1,18 @@
+# Recommended: Specify your app ID *OR* your base resource path for more robust icon loading
+# app_id = "com.x-software.mxl.components"
+# base_resource_path = "/com/my/app/"
+
+# List of icon names you found (shipped with this crate)
+# Note: the file ending `-symbolic.svg` isn't part of the icon name.
+icons = [
+    "play-large",
+    "small-x",
+    "plus",
+    "warning",
+    "arrow-repeat-all-off-filled",
+    "arrow-repeat-all-filled",
+    "video-clip-multiple-regular",
+]
+
+# Optional: Specify a folder containing your own SVG icons
+# icon_folder = "my_svg_icons"

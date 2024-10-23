@@ -1,0 +1,6 @@
+[default.extend-words]
+# Don't correct the project name of "relm4"
+relm = "relm"
+
+[files]
+extend-exclude = ["vcpkg*", "CHANGELOG.md", "crates/mithra"]

@@ -1,0 +1,26 @@
+name: "MXL Player Components build setup"
+description: "Setup the MXL Player Components build environment"
+inputs:
+  rust-toolchain:
+    description: Rust toolchain to install
+    required: true
+  rust-toolchain-components:
+    description: Comma-separated list of components to be additionally installed
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Clear cached ~/.cargo directory
+      shell: bash {0}
+      run: rm -rf ~/.cargo
+    - name: Install ${{ inputs.rust-toolchain }}
+      id: install_rust_toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-toolchain }}
+        components: ${{ inputs.rust-toolchain-components }}
+    - name: Install cargo tools
+      shell: bash {0}
+      run: |
+        source /etc/profile
+        cargo install just
