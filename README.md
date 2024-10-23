@@ -6,6 +6,13 @@
 
 This is a component of the X-Software MXL product line.
 
+## Setup
+
+```sh
+cargo install --locked just
+just setup
+```
+
 # Contributing
 
 This is an open source project, and is thus built with your contributions.

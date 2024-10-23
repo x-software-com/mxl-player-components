@@ -1,6 +1,6 @@
 #!/usr/bin/env -S just --justfile
 #
-# To run this script, you must have installed the Just build tool. Execute:
+# To run this script, you must have installed the Just command runner. Execute:
 # $ cargo install --locked just
 
 #
@@ -16,16 +16,11 @@ setup-cargo-audit:
 setup-cargo-fmt:
     rustup toolchain install nightly-x86_64-unknown-linux-gnu
 
-setup-ci: setup-cargo-hack setup-cargo-audit setup-cargo-fmt
-    cargo install --locked typos-cli
-    cargo install --locked cargo-version-util
-    cargo install --locked cocogitto
-
-setup-git:
+setup: setup-cargo-hack setup-cargo-audit setup-cargo-fmt
     git config pull.rebase true
     git config branch.autoSetupRebase always
-
-setup: setup-ci setup-git
+    cargo install --locked typos-cli
+    cargo install --locked cocogitto
     cog install-hook --overwrite commit-msg
     @echo "Done"
 
