@@ -13,10 +13,7 @@ setup-cargo-hack:
 setup-cargo-audit:
     cargo install --locked cargo-audit
 
-setup-cargo-fmt:
-    rustup toolchain install nightly-x86_64-unknown-linux-gnu
-
-setup: setup-cargo-hack setup-cargo-audit setup-cargo-fmt
+setup: setup-cargo-hack setup-cargo-audit
     git config pull.rebase true
     git config branch.autoSetupRebase always
     cargo install --locked typos-cli
@@ -48,8 +45,11 @@ audit: setup-cargo-audit
 clippy:
     cargo clippy --quiet --release --all-targets --all-features
 
-cargo-fmt: setup-cargo-fmt
-    cargo +nightly fmt --check
+cargo-fmt:
+    cargo fmt --all
+
+cargo-fmt-check:
+    cargo fmt --check
 
 #
 # Misc recipes:
