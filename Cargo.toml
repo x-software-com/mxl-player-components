@@ -40,7 +40,7 @@ gst-video = { package = "gstreamer-video", version = "0.23", features = [
 gst-tag = { package = "gstreamer-tag", version = "0.23", features = ["v1_24"] }
 
 # Force crate to version 0.13.1, becuse 0.13.3 is broken, when executing: cargo check --no-default-features --features dmabuf
-gst-plugin-gtk4 = { version = "=0.13.1", features = ["gtk_v4_14"] }
+gst-plugin-gtk4 = { version = "=0.13.3", features = ["gtk_v4_14"] }
 
 mxl-relm4-components = { git = "https://github.com/x-software-com/mxl-relm4-components.git", tag = "v0.2.2" }
 relm4-icons = { version = "0.9", features = ["all"] }
